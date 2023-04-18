@@ -9,7 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-N = 1000
+N = 5000
 n_bins = 10
 split_p = 0.5
 K = 2
@@ -51,14 +51,22 @@ for i, (clf, name) in enumerate(clf_list):
     # snap scores to bins
     bin_pred = snap(pos_pred, bins=bins).reshape(-1, 1)
 
-    _, p_count = np.unique(bin_pred, return_counts=True)
-    p_freq = p_count / np.sum(p_count)
+    # _, p_count = np.unique(bin_pred, return_counts=True)
+    # p_freq = p_count / np.sum(p_count)
+    #
+    # clb_neg = calibratedConditional(P=p_freq, y=y_test, k=0, bins=bins)
+    # clb_pos = calibratedConditional(P=p_freq, y=y_test, k=1, bins=bins)
+    #
+    # pmf_pos = binPMF(bin_pred, y_test, bins, k=1)
+    # pmf_neg = binPMF(bin_pred, y_test, bins, k=0)
+    #
+    # pos_plan = sinkhornTransport(pmf_pos, clb_pos, bins=bins)
+    # neg_plan = sinkhornTransport(pmf_neg, clb_neg, bins=bins)
+    #
+    y_pred = clf.predict(X_test)
 
-    clb_neg = calibratedConditional(P=p_freq, y=y_test, k=0, bins=bins)
-    clb_pos = calibratedConditional(P=p_freq, y=y_test, k=1, bins=bins)
+    transportPlans = getKTransportPlans(scores=bin_pred, y=y_pred, K=2, bins=bins)
+    transported = bin_pred.copy()
+    for k in range(K):
+        transported = applyTransportPlan(a=transported, M=transportPlans[k], y=y_pred, k=k, bins=bins)
 
-    pmf_pos = binPMF(bin_pred, y_test, bins, k=1)
-    pmf_neg = binPMF(bin_pred, y_test, bins, k=0)
-
-    pos_plan = sinkhornTransport(pmf_pos, clb_pos, bins=bins)
-    transported = applyTransportPlan(a=bin_pred, M=pos_plan, y=y_test, k=1, bins=bins)

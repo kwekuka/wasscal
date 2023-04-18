@@ -1,5 +1,6 @@
-import numpy as np
 import ot
+import numpy as np
+import functools
 
 
 def snap(y, bins):
@@ -47,6 +48,14 @@ def calibratedConditional(P, y, k, bins):
     return prior * likelihood
 
 def binPMF(X, y, bins, k=None):
+    """
+
+    :param X: scores to make pmf
+    :param y: class labels
+    :param bins: possible bins
+    :param k: class for which the binning should occur
+    :return:
+    """
 
     if k is not None: 
         X = X[y == k]
@@ -68,28 +77,72 @@ def sinkhornTransport(source, target, bins):
     G0 = ot.emd_1d(bins, bins, source, target)
     return G0
 
+def generateScores(count,bins):
+    scores = []
+    for i, c in enumerate(count):
+        if c > 0:
+            scores.append(np.ones(c)*bins[i])
+    return np.hstack(scores).flatten()
+
+def distributeMass(count, mass):
+    #do the simple rounding solution
+    distr = np.round(mass * count).astype(int)
+
+    while distr.sum() < count:
+        greedy_distr = (distr + (distr > 0).astype(int))/count
+
+        #Get the index of the element that after having 1 added, would be closest to its true value
+        resid_values = np.divide(greedy_distr, mass)
+        resid = np.nanargmin(np.abs(1 - resid_values))
+        distr[resid] += 1
+    while distr.sum() > count:
+        resid = np.argmax(distr/count - mass)
+        distr[resid] -= 1
+
+    return distr.astype(int)
+
+
+def getKTransportPlans(scores, y, K, bins):
+    plans = []
+    freq = binPMF(scores, y, bins)
+    for k in range(K):
+        pmf = binPMF(scores, y, bins, k=k)
+        clb = calibratedConditional(P=freq, y=y, k=k, bins=bins)
+        plan = sinkhornTransport(pmf, clb, bins=bins)
+        plans.append(plan)
+    return plans
+
 def applyTransportPlan(a, M, y, k, bins):
     new_scores = a.copy()
     class_mask = (y == k).reshape(-1,1)
     for i, bin in enumerate(bins):
-        #Get the transport plan for the ith row, normalize
-        ai = M[i]/np.sum(M[i])
+        #apply transport only if there is mass there
+        if M[i].sum() > 0:
+            #Get the transport plan for the ith row, normalize
+            ai = M[i]/np.sum(M[i])
 
-        #Find all scores that belong to the ith row
-        #i.e. the ith bin 
-        bin_mask = (a == bin)
+            #Find all scores that belong to the ith row
+            #i.e. the ith bin
+            bin_mask = (a == bin)
 
-        #Combined mask
-        mask = np.logical_and(bin_mask, class_mask)
+            #Combined mask
+            mask = np.logical_and(bin_mask, class_mask)
 
-        #Determine how the number of objects in that bun 
-        count_val = np.sum(mask)
+            #Determine how the number of objects in that bun
+            count_val = np.sum(mask)
 
-        #Generate the scores according to the transport plan  
-        applyT = np.random.choice(bins, count_val, p=ai)
+            # grid = np.linspace(0,1,count_val+1)
+            snap_grid = distributeMass(count_val, ai)
 
-        #Replace old scores with new scores 
-        new_scores[mask] = applyT
+            #Generate the scores according to the transport plan
+            applyT = generateScores(snap_grid, bins)
+
+            #Just to be sure I'm replacing the exact number of values that need replacing
+            assert count_val == applyT.shape[0]
+
+            #Replace old scores with new scores
+            new_scores[mask] = applyT
+
     return new_scores
 
 
