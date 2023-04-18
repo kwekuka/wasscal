@@ -147,32 +147,27 @@ def applyTransportPlan(a, M, y, k, bins):
 
 
 
-def make_transported_scores(x, bins):
-    transported = []
-    for i, _ in enumerate(x):
-        transported_scores = [bins[i]] * x[i]
-        transported += transported_scores
-    return np.array(transported).reshape(-1)
 
-def ot_scores_dist(a, b, binned, count, bins, labels, k):
-    plan = ot.emd_1d(bins, bins, a, b)
-    """
-    the plan is a 2d matrix so M[i][j] is the amount of mass in ai going to bj 
-    """
-
-    mask = labels != k
-    y_new = binned.copy()[mask]
-    y_lab = labels.copy()[mask]
-    for i, X in enumerate(plan):
-        X = X/np.sum(X)
-        total_in_bin = count[i]
-        total_transport = np.ceil(np.multiply(total_in_bin, X)).astype(np.int)
-        transported_scores = make_transported_scores(total_transport,bins)
-        y_new = np.hstack([y_new, transported_scores])
-        y_lab = np.hstack([y_lab, np.array([k] * transported_scores.shape[0])])
-    return y_new, y_lab
-
-
+#
+# def ot_scores_dist(a, b, binned, count, bins, labels, k):
+#     plan = ot.emd_1d(bins, bins, a, b)
+#     """
+#     the plan is a 2d matrix so M[i][j] is the amount of mass in ai going to bj
+#     """
+#
+#     mask = labels != k
+#     y_new = binned.copy()[mask]
+#     y_lab = labels.copy()[mask]
+#     for i, X in enumerate(plan):
+#         X = X/np.sum(X)
+#         total_in_bin = count[i]
+#         total_transport = np.ceil(np.multiply(total_in_bin, X)).astype(np.int)
+#         transported_scores = make_transported_scores(total_transport,bins)
+#         y_new = np.hstack([y_new, transported_scores])
+#         y_lab = np.hstack([y_lab, np.array([k] * transported_scores.shape[0])])
+#     return y_new, y_lab
+#
+#
 
 
 
@@ -194,40 +189,40 @@ def ot_scores_dist(a, b, binned, count, bins, labels, k):
     # return ts_best
 
 
-def monotone_transport(source, target):
-    SL = source + np.random.uniform(size=len(source)) * 0.01
-    TL = target + np.random.uniform(size=len(target)) * 0.01
+# def monotone_transport(source, target):
+#     SL = source + np.random.uniform(size=len(source)) * 0.01
+#     TL = target + np.random.uniform(size=len(target)) * 0.01
+#
+#     SQ = np.sum(SL > SL.reshape([-1, 1]), axis=0).reshape(-1,1) / SL.shape[0]  # length 100 (for grid)
+#     TQ = np.sum(TL > TL.reshape([-1, 1]), axis=0).reshape(-1,1) / TL.shape[0]  # length 100 (for grid)
+#
+#     # calculate best t index for each prediction to correct
+#     ts_best = target[np.argmin(np.abs(SQ - TQ.T), axis=1)]
+#
+#     # return score adjustment
+#     return ts_best - source
 
-    SQ = np.sum(SL > SL.reshape([-1, 1]), axis=0).reshape(-1,1) / SL.shape[0]  # length 100 (for grid)
-    TQ = np.sum(TL > TL.reshape([-1, 1]), axis=0).reshape(-1,1) / TL.shape[0]  # length 100 (for grid)
-
-    # calculate best t index for each prediction to correct
-    ts_best = target[np.argmin(np.abs(SQ - TQ.T), axis=1)]
-
-    # return score adjustment
-    return ts_best - source
-
-def calibration_dist(freq, y_true, bins, k=1):
-    if k == 1:
-        cal_bin = np.multiply(freq,bins)
-    elif k == 0:
-        cal_bin = np.multiply(freq, 1-bins)
-    prY = np.mean(y_true == k)
-    clb_dist = cal_bin / prY
-    return clb_dist
-
-def calibration_projection(y_pred, y_true, bins, n=None):
-    if n is None:
-        n = y_pred.shape[0]
-    _, freq = np.unique(y_pred, return_counts=True)
-    freq = freq/freq.sum(axis=0)
-
-    clb_dist = np.multiply(bins, freq)/np.mean(y_true)
-    clb_dist = clb_dist/clb_dist.sum()
-
-    clb_scores = np.random.choice(bins, n, p=clb_dist)
-
-    return clb_scores
-
-
-
+# def calibration_dist(freq, y_true, bins, k=1):
+#     if k == 1:
+#         cal_bin = np.multiply(freq,bins)
+#     elif k == 0:
+#         cal_bin = np.multiply(freq, 1-bins)
+#     prY = np.mean(y_true == k)
+#     clb_dist = cal_bin / prY
+#     return clb_dist
+#
+# def calibration_projection(y_pred, y_true, bins, n=None):
+#     if n is None:
+#         n = y_pred.shape[0]
+#     _, freq = np.unique(y_pred, return_counts=True)
+#     freq = freq/freq.sum(axis=0)
+#
+#     clb_dist = np.multiply(bins, freq)/np.mean(y_true)
+#     clb_dist = clb_dist/clb_dist.sum()
+#
+#     clb_scores = np.random.choice(bins, n, p=clb_dist)
+#
+#     return clb_scores
+#
+#
+#
