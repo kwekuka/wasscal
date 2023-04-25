@@ -101,6 +101,13 @@ def distributeMass(count, mass):
 
     return distr.astype(int)
 
+def getTransortPlanK(scores, y, k, bins):
+    freq = binPMF(scores, y, bins)
+    pmf = binPMF(scores, y, bins, k=k)
+    clb = calibratedConditional(P=freq, y=y, k=k, bins=bins)
+    plan = sinkhornTransport(pmf, clb, bins=bins)
+    return plan
+
 
 def getKTransportPlans(scores, y, K, bins):
     plans = []
