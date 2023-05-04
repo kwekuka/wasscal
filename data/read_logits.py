@@ -1,9 +1,10 @@
 import os
 import pickle
 import numpy as np
+from scipy.special import softmax
 
 class Loader():
-    def __init__(self, dataset):
+    def __init__(self, dataset, probs=True):
         abspath = os.path.abspath(__file__)
         dname = os.path.dirname(abspath)
         os.chdir(dname)
@@ -12,11 +13,13 @@ class Loader():
             with (open("logits_c10_pretrained.p", "rb")) as openfile:
                 x = pickle.load(openfile)
         elif dataset == "CIFAR100":
-            with (open("logits_c100_pretrained.p.p", "rb")) as openfile:
+            with (open("logits_c100_pretrained.p", "rb")) as openfile:
                 x = pickle.load(openfile)
 
         #
-        self.vector = np.exp(x[0])
+        if probs:
+            self.simplex = softmax(x[0], axis=1)
+        self.logits = x[0]
         self.labels = x[1]
 
 

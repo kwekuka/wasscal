@@ -1,5 +1,5 @@
 import numpy as np
-from calibrate import *
+from wasscal import *
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.naive_bayes import GaussianNB
