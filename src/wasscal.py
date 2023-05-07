@@ -1,6 +1,5 @@
 import ot
 import numpy as np
-import functools
 
 
 def snap(y, bins):
