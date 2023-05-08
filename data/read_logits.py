@@ -6,6 +6,8 @@ from scipy.special import softmax
 class Loader:
     """
     Loads logits and labels from a pickle file.
+    Logits were saved from pretrained models defined here:
+    https://github.com/chenyaofo/pytorch-cifar-models
     datasets: 'cifar10', 'cifar100'
     models: 'mobilenetv2_x0_5', 'mobilenetv2_x0_75', 'mobilenetv2_x1_0',
     'mobilenetv2_x1_4', 'repvgg_a0','repvgg_a1','repvgg_a2','resnet20', 'resnet32',
