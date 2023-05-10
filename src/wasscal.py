@@ -46,6 +46,7 @@ def calibratedConditional(P, y, k, bins):
 
     return prior * likelihood
 
+
 def binPMF(X, y, bins, k=None):
     """
 
@@ -73,7 +74,12 @@ def sinkhornTransport(source, target, bins):
 
     G0 is a.shape[0] x b.shape[0] matrix where G0[i,j] is mass in a[i] to b[j]
     """
-    G0 = ot.emd_1d(bins, bins, source, target)
+
+    # Equivalent to
+    M = ot.dist(bins.reshape(-1, 1), bins.reshape(-1, 1))
+    M /= M.max()
+    G0 = ot.emd(source, target, M**2)
+    # G0 = ot.emd_1d(bins, bins, source, target)
     return G0
 
 def generateScores(count,bins):
@@ -91,7 +97,7 @@ def distributeMass(count, mass):
         greedy_distr = (distr + (distr > 0).astype(int))/count
 
         #Get the index of the element that after having 1 added, would be closest to its true value
-        resid_values = np.divide(greedy_distr, mass)
+        resid_values = np.divide(greedy_distr, mass + 1e-12)
         resid = np.nanargmin(np.abs(1 - resid_values))
         distr[resid] += 1
     while distr.sum() > count:
@@ -104,8 +110,10 @@ def getTransortPlanK(scores, y, k, bins):
     freq = binPMF(scores, y, bins)
     pmf = binPMF(scores, y, bins, k=k)
     clb = calibratedConditional(P=freq, y=y, k=k, bins=bins)
-    plan = sinkhornTransport(pmf, clb, bins=bins)
-    return plan
+    if clb.sum() > 0:
+        return sinkhornTransport(pmf, clb, bins=bins)
+    else:
+        return None
 
 
 def getKTransportPlans(scores, y, K, bins):

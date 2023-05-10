@@ -17,6 +17,12 @@ class Loader:
     probs: if True, computes the softmax of the logits in self.simplex
     """
 
+    models =['mobilenetv2_x0_5', 'mobilenetv2_x0_75', 'mobilenetv2_x1_0',
+    'mobilenetv2_x1_4', 'repvgg_a0', 'repvgg_a1', 'repvgg_a2', 'resnet20', 'resnet32',
+    'resnet44', 'resnet56', 'shufflenetv2_x0_5', 'shufflenetv2_x1_0',
+    'shufflenetv2_x1_5', 'shufflenetv2_x2_0', 'vgg11_bn', 'vgg13_bn', 'vgg16_bn',
+    'vgg19_bn']
+
     def __init__(self, dataset="cifar10", model="resnet20", probs=True):
         abs_path = os.path.abspath(__file__)
         dir_name = os.path.join(os.path.dirname(abs_path), "pretrained_logits")

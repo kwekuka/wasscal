@@ -1,6 +1,9 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torchmetrics.classification import MulticlassCalibrationError
+
 
 class MatrixScaling(nn.Module):
     def __init__(self, K):
@@ -94,7 +97,7 @@ class CalibrationLayer():
 
     def _calibrate(self):
         nll_criterion = nn.CrossEntropyLoss()
-        optimizer = optim.LBFGS(self.calibrator.parameters(), lr=1e-4)
+        optimizer = optim.LBFGS(self.calibrator.parameters(), lr=1e-2, max_iter=500)
         def closure():
             optimizer.zero_grad()
             loss = nll_criterion(self.calibrator(self.logits), self.labels)
@@ -137,4 +140,11 @@ class CalibrationLayer():
             return self._calibrate()
 
 
+def ECE(probs, labels, bins=15):
+    probs = np.divide(probs, probs.sum(axis=1).reshape(-1, 1))
+    ce = MulticlassCalibrationError(num_classes=probs.shape[1], n_bins=bins, norm='l1')
+    probs = torch.tensor(probs)
+    labels = torch.tensor(labels)
+
+    return ce(probs, labels)*100
 
