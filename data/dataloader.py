@@ -3,7 +3,7 @@ import pickle
 from scipy.special import softmax
 
 
-class Loader:
+class cifar:
     """
     Loads logits and labels from a pickle file.
     Logits were saved from pretrained models defined here:
@@ -40,6 +40,20 @@ class Loader:
             self.labels = x[1]
         else:
             raise FileNotFoundError("logits file not found")
+
+class uci:
+
+    def __init__(self, dataset):
+        abs_path = os.path.abspath(__file__)
+        dir_name = os.path.join(os.path.dirname(abs_path), "uci")
+        os.chdir(dir_name)
+
+        f_name = dataset + ".p"
+        if os.path.isfile(f_name):
+            with open(f_name, "rb") as openfile:
+                x, y = pickle.load(openfile)
+            self.data = x
+            self.labels = y
 
 
 # if __name__ == "__main__":

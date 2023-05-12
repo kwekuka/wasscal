@@ -3,6 +3,31 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchmetrics.classification import MulticlassCalibrationError
+from sklearn.isotonic import IsotonicRegression
+from utils import *
+import scipy
+
+
+class IsotonicCalibrator:
+    def __init__(self, prob_pred, prob_true, K):
+        self.regressors = []
+        self.K = K
+        for k in range(K):
+            balancedX, balancedy = balanceData(X=prob_pred, y=prob_true, k=k)
+            iso = IsotonicRegression(out_of_bounds="clip").fit(balancedX[:,k], balancedy)
+            self.regressors.append(iso)
+
+    def calibrate(self, probs):
+        preds = []
+        for k in range(self.K):
+            iso = self.regressors[k]
+            preds.append(iso.predict(probs[:,k]).reshape(-1,1))
+
+        preds = np.hstack(preds)
+        return scipy.special.softmax(preds, axis=1)
+
+
+
 
 
 class MatrixScaling(nn.Module):
@@ -109,7 +134,7 @@ class CalibrationLayer():
 
     def _calibrateODIRL2(self):
         nll_criterion = nn.CrossEntropyLoss()
-        optimizer = optim.LBFGS(self.calibrator.parameters(), lr=1e-2, max_iter=500)
+        optimizer = optim.LBFGS(self.calibrator.parameters(), lr=1e-4, max_iter=500)
 
         r_odir = 2
         r_bias = 2
@@ -140,7 +165,7 @@ class CalibrationLayer():
             return self._calibrate()
 
 
-def ECE(probs, labels, bins=15):
+def ECE(probs, labels, bins=100):
     probs = np.divide(probs, probs.sum(axis=1).reshape(-1, 1))
     ce = MulticlassCalibrationError(num_classes=probs.shape[1], n_bins=bins, norm='l1')
     probs = torch.tensor(probs)

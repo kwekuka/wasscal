@@ -43,8 +43,8 @@ def calibratedConditional(P, y, k, bins):
         bins = np.flip(bins)
     prior = np.multiply(bins, P)
     likelihood = 1/np.mean(y == k)
-
-    return prior * likelihood
+    dist = prior * likelihood
+    return dist/dist.sum() 
 
 
 def binPMF(X, y, bins, k=None):
@@ -158,6 +158,5 @@ def applyTransportPlan(a, M, y, k, bins):
             new_scores[mask] = applyT
 
     return new_scores
-
 
 
