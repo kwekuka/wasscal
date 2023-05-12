@@ -1,5 +1,7 @@
 import ot
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+
 
 
 def snap(y, bins):
@@ -160,3 +162,37 @@ def applyTransportPlan(a, M, y, k, bins):
     return new_scores
 
 
+def wassersteinCalibration(Y_train_pred, Y_test_pred, y_train, y_test, bins, K):
+    collect = []
+    for k in range(K):
+
+        num_k = (y_train == k).sum() 
+        Xk_train, yk_train = Y_train_pred[y_train == k], np.ones(num_k)
+        Xnotk_train, ynotk_train = Y_train_pred[y_train != k][:num_k], np.zeros(num_k)
+
+        Xk_train = np.vstack([Xk_train, Xnotk_train])
+        Yk_train = np.hstack([yk_train, ynotk_train])   
+        
+        binaryCLF = RandomForestClassifier()
+        binaryCLF.fit(Xk_train, Yk_train)
+        class_k = binaryCLF.predict(Y_test_pred).astype(int)
+
+        yk_true = (y_test == k).astype(int)
+        
+        yk_pred = Y_test_pred[:, k]
+        bin_pred = snap(yk_pred, bins=bins).reshape(-1, 1)
+
+
+        transported = bin_pred.copy()
+            
+        for kk in range(2):
+            k_plan = getTransortPlanK(scores=bin_pred, y=class_k, k=kk, bins=bins)
+            if k_plan is not None:
+                transported = applyTransportPlan(a=transported, M=k_plan, y=class_k, k=kk, bins=bins)
+        
+
+        collect.append(transported)
+    
+    collected = np.hstack(collect)
+    collected = np.divide(collected, collected.sum(axis=1).reshape(-1,1))
+    return collected 
