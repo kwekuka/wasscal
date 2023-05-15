@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../src/')
 sys.path.append('../data/')
-sys.path.append('../dirichlet_python/')
+sys.path.append('../dirichlet/')
 
 import numpy as np
 from utils import *
