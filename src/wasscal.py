@@ -1,7 +1,9 @@
 import ot
 import numpy as np
+from utils import *
 from sklearn.ensemble import RandomForestClassifier
-
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import KFold
 
 
 def snap(y, bins):
@@ -162,37 +164,44 @@ def applyTransportPlan(a, M, y, k, bins):
     return new_scores
 
 
-def wassersteinCalibration(Y_train_pred, Y_test_pred, y_train, y_test, bins, K):
+def wassersteinCalibration(Y_train_pred, Y_test_pred, y_train, bins, K):
     collect = []
     for k in range(K):
 
-        num_k = (y_train == k).sum() 
-        Xk_train, yk_train = Y_train_pred[y_train == k], np.ones(num_k)
-        Xnotk_train, ynotk_train = Y_train_pred[y_train != k][:num_k], np.zeros(num_k)
+        acc = []
+        clfs = []
+        options = [0.05, .1, 0.25, 0.5]
+        kf = KFold(n_splits=len(options))
 
-        Xk_train = np.vstack([Xk_train, Xnotk_train])
-        Yk_train = np.hstack([yk_train, ynotk_train])   
-        
-        binaryCLF = RandomForestClassifier()
-        binaryCLF.fit(Xk_train, Yk_train)
-        class_k = binaryCLF.predict(Y_test_pred).astype(int)
+        for i, (train_index, test_index) in enumerate(kf.split(Y_train_pred)):
+            Xk_train, Yk_train = balanceData(Y_train_pred[train_index],
+                                             y_train[train_index],
+                                             k,
+                                             p=options[i])
+            binaryCLF = RandomForestClassifier()
+            binaryCLF.fit(Xk_train, Yk_train)
 
-        yk_true = (y_test == k).astype(int)
-        
+            val_pk = binaryCLF.predict(Y_train_pred[test_index]).astype(int)
+            val_yk = (y_train == k)[test_index]
+            acc.append(accuracy_score(y_true=val_yk, y_pred=val_pk))
+            clfs.append(binaryCLF)
+
+        acc_max_ix = np.argmax(np.array(acc))
+        clf = clfs[acc_max_ix]
+
+        is_pred_k = clf.predict(Y_test_pred)
         yk_pred = Y_test_pred[:, k]
         bin_pred = snap(yk_pred, bins=bins).reshape(-1, 1)
 
-
         transported = bin_pred.copy()
-            
+
         for kk in range(2):
-            k_plan = getTransortPlanK(scores=bin_pred, y=class_k, k=kk, bins=bins)
+            k_plan = getTransortPlanK(scores=bin_pred, y=is_pred_k, k=kk, bins=bins)
             if k_plan is not None:
-                transported = applyTransportPlan(a=transported, M=k_plan, y=class_k, k=kk, bins=bins)
-        
+                transported = applyTransportPlan(a=transported, M=k_plan, y=is_pred_k, k=kk, bins=bins)
 
         collect.append(transported)
-    
+
     collected = np.hstack(collect)
-    collected = np.divide(collected, collected.sum(axis=1).reshape(-1,1))
-    return collected 
+    collected = np.divide(collected, collected.sum(axis=1).reshape(-1, 1))
+    return collected

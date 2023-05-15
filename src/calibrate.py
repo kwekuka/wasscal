@@ -8,28 +8,6 @@ from utils import *
 import scipy
 
 
-class IsotonicCalibrator:
-    def __init__(self, prob_pred, prob_true, K):
-        self.regressors = []
-        self.K = K
-        for k in range(K):
-            balancedX, balancedy = balanceData(X=prob_pred, y=prob_true, k=k)
-            iso = IsotonicRegression(out_of_bounds="clip").fit(balancedX[:,k], balancedy)
-            self.regressors.append(iso)
-
-    def calibrate(self, probs):
-        preds = []
-        for k in range(self.K):
-            iso = self.regressors[k]
-            preds.append(iso.predict(probs[:,k]).reshape(-1,1))
-
-        preds = np.hstack(preds)
-        return scipy.special.softmax(preds, axis=1)
-
-
-
-
-
 class MatrixScaling(nn.Module):
     def __init__(self, K):
         super(MatrixScaling, self).__init__()
@@ -51,7 +29,7 @@ class DirichletCalibration(nn.Module):
 
     def forward(self, input):
         with torch.no_grad():
-            logits = torch.log(torch.clip(input, self.eps, 1 - self.eps))
+            logits = torch.log(torch.clip(input, self.eps, 1-self.eps))
 
         return self.matrix(logits)
 
@@ -99,11 +77,12 @@ class VectorScaling(nn.Module):
 
 
 class CalibrationLayer():
-    def __init__(self, method, logits, labels, K=None):
+    def __init__(self, method, logits, labels, lr=1e-8, K=None):
         self.logits = torch.tensor(logits)
         self.labels = torch.tensor(labels)
         self.method = method
         self.K = K
+        self.lr = lr
 
         if method == "Temperature":
             self.calibrator = TemperatureScaling()
@@ -111,58 +90,73 @@ class CalibrationLayer():
         if method == "Vector":
             self.calibrator = VectorScaling(K=K)
 
-        if method == "Matrix":
-            self.calibrator = MatrixScaling(K=K)
-
-        if method == "Dirichlet":
-            self.calibrator = DirichletCalibration(K=K)
+        # if method == "Matrix":
+        #     self.calibrator = MatrixScaling(K=K)
+        #
+        # if method == "Dirichlet":
+        #     self.calibrator = DirichletCalibration(K=K)
 
     def evaluate(self, X):
         return self.calibrator.evaluate(X)
 
     def _calibrate(self):
         nll_criterion = nn.CrossEntropyLoss()
-        optimizer = optim.LBFGS(self.calibrator.parameters(), lr=1e-2, max_iter=500)
+        optimizer = optim.LBFGS(self.calibrator.parameters(),
+                                self.lr,
+                                max_iter=500)
         def closure():
             optimizer.zero_grad()
             loss = nll_criterion(self.calibrator(self.logits), self.labels)
             loss.backward()
             return loss
 
-        optimizer.step(closure)
-        return self
+        loss = optimizer.step(closure)
+        return self, loss.detach().flatten().numpy()
 
     def _calibrateODIRL2(self):
         nll_criterion = nn.CrossEntropyLoss()
-        optimizer = optim.LBFGS(self.calibrator.parameters(), lr=1e-4, max_iter=500)
+        optimizer = optim.LBFGS(self.calibrator.parameters(), lr=self.lr, max_iter=500)
 
-        r_odir = 2
-        r_bias = 2
+        r_odir = .5
+        r_bias = .75
         k = self.K
+
+        def odir_reg(matrix):
+            sum = torch.tensor(0.0)
+            for i, row in enumerate(matrix):
+                for j, _ in enumerate(row):
+                    if i != j:
+                        sum += torch.pow(matrix[i][j],2)
+            return sum
+
 
         def closure():
             optimizer.zero_grad()
 
-            odir = self.calibrator.matrix.weight.clone()
-            odir.diagonal(dim1=-1, dim2=-2).zero_()
+            odir = self.calibrator.matrix.weight
+            # odir.diagonal(dim1=-1, dim2=-2).zero_()
 
             bias = self.calibrator.matrix.bias.clone()
 
             loss = nll_criterion(self.calibrator(self.logits), self.labels)
-            odir_loss = torch.norm(odir, p=2) * (1/(k*(k-1))) * r_odir
+            odir_loss = odir_reg(odir) * (1/(k*(k-1))) * r_odir
             bias_loss = torch.norm(bias, p=2) * (1/k) * r_bias
             loss += odir_loss
             loss += bias_loss
             loss.backward()
+            print(ECE(probs=self.evaluate(self.d)))
             return loss
 
-        optimizer.step(closure)
-        return self
+        loss = optimizer.step(closure)
+        return self, loss.detach().flatten().numpy()
     def calibrate(self, ODIR=False, L2=False):
         if ODIR and L2:
             return self._calibrateODIRL2()
         else:
             return self._calibrate()
+
+
+
 
 
 def ECE(probs, labels, bins=100):

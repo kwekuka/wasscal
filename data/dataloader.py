@@ -23,6 +23,7 @@ class cifar:
     'shufflenetv2_x1_5', 'shufflenetv2_x2_0', 'vgg11_bn', 'vgg13_bn', 'vgg16_bn',
     'vgg19_bn']
 
+
     def __init__(self, dataset="cifar10", model="resnet20", probs=True):
         abs_path = os.path.abspath(__file__)
         dir_name = os.path.join(os.path.dirname(abs_path), "pretrained_logits")
@@ -36,12 +37,16 @@ class cifar:
 
             if probs:
                 self.simplex = softmax(x[0], axis=1)
+                self.has_probs = True
+
             self.logits = x[0]
+            self.has_logits = True
             self.labels = x[1]
         else:
             raise FileNotFoundError("logits file not found")
 
 class uci:
+    uci_data = ["yeast", "beans"]
 
     def __init__(self, dataset):
         abs_path = os.path.abspath(__file__)
@@ -55,9 +60,13 @@ class uci:
             self.data = x
             self.labels = y
 
+        self.has_logits = False
+        self.has_probs = False
 
-# if __name__ == "__main__":
-#    loader = Loader()
-#    print(loader.logits.shape)
-#    print(loader.labels.shape)
-#    print(loader.simplex.shape)
+
+
+
+
+
+
+
