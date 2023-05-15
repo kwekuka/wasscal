@@ -296,35 +296,6 @@ class WassersteinCalibrator():
 
 
 
-for dataset in ["cifar10", "beans", "yeast"]:
-    bm = BenchmarkDataset(dataset=dataset)
-
-    dc = DirichletCalibration()
-    dc.fit(bm.y_val_logits, bm.y_val)
-    print(dc.ECE(bm.y_test_logits, bm.y_test))
-
-    #Samples of fitting and computing calibration error
-    platt = PlattScaling(bm.K)
-    platt.fit(bm.y_val_pred, bm.y_val)
-    print(platt.ECE(bm.y_test_pred, bm.y_test))
-
-    #Example of how to get calibrated logits or calibrated probabilities
-    platt.logits(bm.y_test_pred)
-    platt.calibrate(bm.y_test_pred)
-
-    iso = IsotonicCalibration(bm.K)
-    iso.fit(bm.y_val_pred, bm.y_val)
-    print(iso.ECE(bm.y_test_pred, bm.y_test))
-
-
-
-    ts = TemperatureScaling()
-    ts.fit(bm.y_val_logits, bm.y_val)
-    print(ts.ECE(bm.y_test_logits, bm.y_test))
-
-    vs = VectorScaling(K=bm.K)
-    vs.fit(bm.y_val_logits, bm.y_val)
-    print(vs.ECE(bm.y_test_logits, bm.y_test))
 
 
 #
