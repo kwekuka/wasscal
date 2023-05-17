@@ -4,6 +4,7 @@ from utils import *
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import KFold
+from sklearn.linear_model import LogisticRegression
 
 
 def snap(y, bins):

@@ -46,7 +46,7 @@ class cifar:
             raise FileNotFoundError("logits file not found")
 
 class uci:
-    uci_data = ["yeast", "beans"]
+    uci_data = ["yeast", "beans", "abalone", "glass_id", "room_oc_est", "wine_quality", "car_eval", "iris"]
 
     def __init__(self, dataset):
         abs_path = os.path.abspath(__file__)

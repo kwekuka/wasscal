@@ -97,6 +97,9 @@ class CalibrationLayer():
         #     self.calibrator = DirichletCalibration(K=K)
 
     def evaluate(self, X):
+        if self.method == "Temperatures":
+            print(self.calibrator.par.detach().numpy())
+
         return self.calibrator.evaluate(X)
 
     def _calibrate(self):
@@ -104,6 +107,7 @@ class CalibrationLayer():
         optimizer = optim.LBFGS(self.calibrator.parameters(),
                                 self.lr,
                                 max_iter=500)
+
         def closure():
             optimizer.zero_grad()
             loss = nll_criterion(self.calibrator(self.logits), self.labels)
